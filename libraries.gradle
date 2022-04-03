@@ -1,0 +1,10 @@
+ext {
+    snoopyGrpcBaseVersion = "1.0.0-RC1"
+    jetcdVersion = '0.5.7'
+    library = [
+            //snoopy-grpc-base
+            snoopy_grpc_base: "com.snoopy:snoopy-grpc-base:${snoopyGrpcBaseVersion}",
+            //jetcd-core
+            jetcd_core      : "io.etcd:jetcd-core:${jetcdVersion}"
+    ]
+}
