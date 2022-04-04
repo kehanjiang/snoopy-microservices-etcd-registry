@@ -35,7 +35,20 @@ repositories {
 
 dependencies {
     compile library.snoopy_grpc_base
-    compile library.jetcd_core
+
+    compile library.grpc_core
+    compile library.grpc_netty
+    compile library.grpc_protobuf
+    compile library.grpc_stub
+    compile library.grpc_grpclb
+
+    compile (library.jetcd_core){
+        exclude module: 'grpc-core'
+        exclude module: 'grpc-netty'
+        exclude module: 'grpc-protobuf'
+        exclude module: 'grpc-stub'
+        exclude module: 'grpc-grpclb'
+    }
 }
 
 //依赖缓存时间

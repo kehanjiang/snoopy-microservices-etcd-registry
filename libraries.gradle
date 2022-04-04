@@ -1,7 +1,14 @@
 ext {
+    grpcVersion = "1.25.0"
     snoopyGrpcBaseVersion = "1.0.0-RC1"
     jetcdVersion = '0.5.7'
     library = [
+            //grpc
+            grpc_core       : "io.grpc:grpc-core:${grpcVersion}",
+            grpc_netty      : "io.grpc:grpc-netty:${grpcVersion}",
+            grpc_protobuf   : "io.grpc:grpc-protobuf:${grpcVersion}",
+            grpc_stub       : "io.grpc:grpc-stub:${grpcVersion}",
+            grpc_grpclb     : "io.grpc:grpc-grpclb:${grpcVersion}",
             //snoopy-grpc-base
             snoopy_grpc_base: "com.snoopy:snoopy-grpc-base:${snoopyGrpcBaseVersion}",
             //jetcd-core
