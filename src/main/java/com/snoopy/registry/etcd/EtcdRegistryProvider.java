@@ -10,14 +10,9 @@ import com.snoopy.grpc.base.registry.IRegistryProvider;
  */
 public class EtcdRegistryProvider implements IRegistryProvider {
     public static final String REGISTRY_PROTOCOL_ETCD = "etcd";
-    private GrpcRegistryProperties grpcRegistryProperties;
-
-    public EtcdRegistryProvider(GrpcRegistryProperties grpcRegistryProperties) {
-        this.grpcRegistryProperties = grpcRegistryProperties;
-    }
 
     @Override
-    public IRegistry newRegistryInstance() {
+    public IRegistry newRegistryInstance(GrpcRegistryProperties grpcRegistryProperties) {
         return new EtcdRegistry(grpcRegistryProperties);
     }
 
