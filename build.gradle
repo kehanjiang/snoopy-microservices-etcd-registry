@@ -2,8 +2,8 @@ description = 'snoopy microservices etcd registry'
 
 group 'com.snoopy'
 
-//version '1.0.0-RC1'
-version '1.0.0-SNAPSHOT'
+version '1.0.0-RC2'
+//version '1.0.0-SNAPSHOT'
 
 apply plugin: 'java'
 apply plugin: 'idea'
@@ -35,20 +35,7 @@ repositories {
 
 dependencies {
     compile library.snoopy_grpc_base
-
-    compile library.grpc_core
-    compile library.grpc_netty
-    compile library.grpc_protobuf
-    compile library.grpc_stub
-    compile library.grpc_grpclb
-
-    compile (library.jetcd_core){
-        exclude module: 'grpc-core'
-        exclude module: 'grpc-netty'
-        exclude module: 'grpc-protobuf'
-        exclude module: 'grpc-stub'
-        exclude module: 'grpc-grpclb'
-    }
+    compile library.jetcd_core
 }
 
 //依赖缓存时间
