@@ -7,8 +7,7 @@ import com.snoopy.grpc.base.registry.IRegistryProvider;
 import io.etcd.jetcd.Client;
 import io.etcd.jetcd.ClientBuilder;
 import io.grpc.netty.GrpcSslContexts;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.*;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -31,12 +30,14 @@ public class EtcdRegistryProvider implements IRegistryProvider {
     public static final String REGISTRY_PROTOCOL_ETCD = "etcd";
 
     public static final String PARAM_USEPLAINTEXT = "usePlaintext";
+    public static final String PARAM_SSLPROVIDER = "SslProvider";
     public static final String PARAM_AUTHORITY = "authority";
     public static final String PARAM_CA_CERTFILE = "caCertFile";
     public static final String PARAM_CERTFILE = "certFile";
     public static final String PARAM_KEYFILE = "keyFile";
     public static final String PARAM_KEY_PASSWORD = "keyPassword";
     public static final String PARAM_ENABLEDOCSP = "enabledOcsp";
+
 
     @Override
     public IRegistry newRegistryInstance(GrpcRegistryProperties grpcRegistryProperties) {
@@ -55,6 +56,7 @@ public class EtcdRegistryProvider implements IRegistryProvider {
         String username = grpcRegistryProperties.getUsername();
         String password = grpcRegistryProperties.getPassword();
         if (!StringUtils.isEmpty(username) && !StringUtils.isEmpty(password)) {
+            // 当服务器端开启ssl认证时则该地方的设置就没有意义了.etcd会使用客户端ca证书中的CN头作为用户名进行权限认证
             builder.user(EtcdUtils.byteSequence(username)).password(EtcdUtils.byteSequence(password));
         }
         if (!usePlaintext) {
@@ -83,6 +85,16 @@ public class EtcdRegistryProvider implements IRegistryProvider {
             }
         }
 
+        // 这里必须要设置alpn,否则会提示ALPN must be enabled and list HTTP/2 as a supported protocol.错误; 这里主要设置了传输协议以及传输过程中的错误解决方式
+        ApplicationProtocolConfig alpn = new ApplicationProtocolConfig(ApplicationProtocolConfig.Protocol.ALPN,
+                ApplicationProtocolConfig.SelectorFailureBehavior.NO_ADVERTISE,
+                ApplicationProtocolConfig.SelectedListenerFailureBehavior.ACCEPT,
+                ApplicationProtocolNames.HTTP_2);
+        sslContextBuilder.applicationProtocolConfig(alpn);
+
+        String SslProvider = grpcRegistryProperties.getExtra(PARAM_SSLPROVIDER, "OPENSSL");
+        sslContextBuilder.sslProvider(Enum.valueOf(SslProvider.class, SslProvider));
+
         String certFilePath = grpcRegistryProperties.getExtra(PARAM_CERTFILE);
         File certFile = grpcRegistryProperties.getFileExtra(certFilePath);
         requireNonNull(certFile, "client cert file is not configured");
@@ -92,8 +104,7 @@ public class EtcdRegistryProvider implements IRegistryProvider {
         String keyPassword = grpcRegistryProperties.getExtra(PARAM_KEY_PASSWORD);
         try (InputStream certFileStream = new FileInputStream(certFile);
              InputStream keyFileStream = new FileInputStream(keyFile)) {
-            sslContextBuilder = GrpcSslContexts.forServer(certFileStream, keyFileStream,
-                    keyPassword);
+            sslContextBuilder.keyManager(certFileStream, keyFileStream, keyPassword);
         } catch (IOException | RuntimeException e) {
             throw new IllegalArgumentException("Failed to create SSLContext (PK/Cert)", e);
         }
