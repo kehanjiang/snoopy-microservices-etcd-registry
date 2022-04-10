@@ -14,6 +14,7 @@ import io.grpc.stub.StreamObserver;
 import org.apache.commons.lang3.math.NumberUtils;
 
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -180,4 +181,22 @@ public class EtcdRegistry implements IRegistry {
                 TimeUnit.MILLISECONDS).getKvs();
     }
 
+    @Override
+    public void close() throws IOException {
+        if (etcdKvClient != null) {
+            etcdKvClient.close();
+        }
+        if (etcdLeaseClient != null) {
+            etcdLeaseClient.close();
+        }
+        if (serviceWatcher != null) {
+            serviceWatcher.close();
+        }
+        if (etcdWatchClient != null) {
+            etcdWatchClient.close();
+        }
+        if (etcdClient != null) {
+            etcdClient.close();
+        }
+    }
 }
