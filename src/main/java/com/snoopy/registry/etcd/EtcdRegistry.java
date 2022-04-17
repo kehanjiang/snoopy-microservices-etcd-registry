@@ -16,7 +16,9 @@ import org.apache.commons.lang3.math.NumberUtils;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -44,7 +46,7 @@ public class EtcdRegistry implements IRegistry {
     private Lease etcdLeaseClient;
     private Watch etcdWatchClient;
 
-    private Watch.Watcher serviceWatcher;
+    private Map<String, Watch.Watcher> watcherMap = new HashMap<>();
 
     public EtcdRegistry(GrpcRegistryProperties grpcRegistryProperties, Client client) {
         //获取基础client
@@ -96,18 +98,23 @@ public class EtcdRegistry implements IRegistry {
     public void subscribe(RegistryServiceInfo serviceInfo, ISubscribeCallback subscribeCallback) {
         reentrantLock.lock();
         try {
+            deleteNode(serviceInfo, EtcdKeyType.CLIENT);
             putNode(serviceInfo, EtcdKeyType.CLIENT);
             String serverTypePath = EtcdUtils.toNodeTypePath(serviceInfo, EtcdKeyType.SERVER);
             notifyChange(subscribeCallback, getChildren(serverTypePath));
-            serviceWatcher = etcdWatchClient.watch(EtcdUtils.byteSequence(serverTypePath),
-                    WatchOption.newBuilder().withPrefix(EtcdUtils.byteSequence(serverTypePath)).build(),
-                    (watchResponse) -> {
-                        try {
-                            notifyChange(subscribeCallback, getChildren(serverTypePath));
-                        } catch (Exception e) {
-                            throw new RuntimeException(e);
-                        }
-                    });
+            Watch.Watcher serviceWatcher = watcherMap.get(serverTypePath);
+            if (serviceWatcher == null) {
+                serviceWatcher = etcdWatchClient.watch(EtcdUtils.byteSequence(serverTypePath),
+                        WatchOption.newBuilder().withPrefix(EtcdUtils.byteSequence(serverTypePath)).build(),
+                        (watchResponse) -> {
+                            try {
+                                notifyChange(subscribeCallback, getChildren(serverTypePath));
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+                watcherMap.put(serverTypePath, serviceWatcher);
+            }
         } catch (Throwable e) {
             throw new RuntimeException("[" + serviceInfo.getPath() + "] subscribe failed !", e);
         } finally {
@@ -128,7 +135,11 @@ public class EtcdRegistry implements IRegistry {
         reentrantLock.lock();
         try {
             deleteNode(serviceInfo, EtcdKeyType.CLIENT);
-            serviceWatcher.close();
+            String serverTypePath = EtcdUtils.toNodeTypePath(serviceInfo, EtcdKeyType.SERVER);
+            Watch.Watcher serviceWatcher = watcherMap.get(serverTypePath);
+            if (serviceWatcher != null) {
+                serviceWatcher.close();
+            }
         } catch (Throwable e) {
             throw new RuntimeException("[" + serviceInfo.getPath() + "] unsubscribe failed !", e);
         } finally {
@@ -141,6 +152,7 @@ public class EtcdRegistry implements IRegistry {
         reentrantLock.lock();
         try {
             if (isReady()) {
+                unregister(serviceInfo);
                 putNode(serviceInfo, EtcdKeyType.SERVER);
             }
         } catch (Throwable e) {
@@ -189,8 +201,8 @@ public class EtcdRegistry implements IRegistry {
         if (etcdLeaseClient != null) {
             etcdLeaseClient.close();
         }
-        if (serviceWatcher != null) {
-            serviceWatcher.close();
+        for (Watch.Watcher watcher : watcherMap.values()) {
+            watcher.close();
         }
         if (etcdWatchClient != null) {
             etcdWatchClient.close();
