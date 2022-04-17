@@ -139,6 +139,7 @@ public class EtcdRegistry implements IRegistry {
             Watch.Watcher serviceWatcher = watcherMap.get(serverTypePath);
             if (serviceWatcher != null) {
                 serviceWatcher.close();
+                watcherMap.remove(serverTypePath);
             }
         } catch (Throwable e) {
             throw new RuntimeException("[" + serviceInfo.getPath() + "] unsubscribe failed !", e);
